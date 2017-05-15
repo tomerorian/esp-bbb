@@ -9,13 +9,14 @@
 #include <ESP8266WiFi.h>
 #include <aREST.h>
 #include <EEPROM.h>
+#include "wifi.h"
 
 // Create aREST instance
 aREST rest = aREST();
 
 // WiFi parameters
-const char* ssid = "";
-const char* password = "";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 
 
 // BBB site creds

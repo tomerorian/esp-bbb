@@ -10,6 +10,12 @@
 #include <aREST.h>
 #include <EEPROM.h>
 #include "wifi.h"
+#include <WiFiClientSecure.h>
+
+// Site
+const int httpPort = 443;
+const char *host = "beef-bun-button.herokuapp.com";
+const char* fingerprint = "08 3B 71 72 02 43 6E CA ED 42 86 93 BA 7E DF 81 C4 BC 62 30";
 
 // Button
 const int buttonPin = 14;
@@ -186,6 +192,74 @@ void handle_rest()
   rest.handle(client);  
 }
 
+boolean connect_to_site(WiFiClientSecure *client)
+{    
+  Serial.println("Connecting");
+  if (!client->connect(host, httpPort)) {
+    Serial.println("connection failed");
+    return false;
+  }
+
+  if (client->verify(fingerprint, host)) {
+    Serial.println("certificate matches");
+    return true;
+  } else {
+    Serial.println("certificate doesn't match");
+    return false;
+  }
+}
+
+String makeRequest(WiFiClientSecure *client, String url, String cookie)
+{
+  Serial.print("Requesting URL: ");
+  Serial.println(url);
+  
+  client->print(String("POST ") + url + " HTTP/1.1\r\n" +
+               "Host: " + host + "\r\n");
+               
+  if (cookie != "") {
+    client->print(String("Cookie: " + cookie + "\r\n"));
+  }
+  
+  client->print("Connection: keep-alive\r\n\r\n");
+               
+  unsigned long timeout = millis();
+  while (client->available() == 0) {
+    if (millis() - timeout > 5000) {
+      Serial.println(">>> Client Timeout !");
+      client->stop();
+      return "";
+    }
+  }
+
+  String retCookie = "";
+  
+  while(client->available()){
+    String line = client->readStringUntil('\r');
+    if (line.startsWith("\nSet-Cookie")) {
+      retCookie = line.substring(13);
+    }
+    
+    Serial.print(line);
+  }
+
+  return retCookie;
+}
+
+void handle_button_click() 
+{
+  WiFiClientSecure client;
+
+  if (!connect_to_site(&client)) {
+    return;
+  }
+
+  String cookie = makeRequest(&client, "/login?username=user&password=password", "");
+  makeRequest(&client, "/order?username=user&password=password", cookie);
+
+  client.stop();
+}
+
 void handle_button() 
 {
   int buttonState = digitalRead(buttonPin);
@@ -196,7 +270,7 @@ void handle_button()
     isButtonDown = false;
 
     if (millis() - clickTime >= clickDelay) {
-      Serial.println("click!");
+      handle_button_click();
       clickTime = millis();
     }
   }

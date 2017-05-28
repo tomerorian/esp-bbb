@@ -11,6 +11,12 @@
 #include <EEPROM.h>
 #include "wifi.h"
 
+// Button
+const int buttonPin = 14;
+const unsigned long clickDelay = 1000;
+boolean isButtonDown = false;
+unsigned long clickTime = 0;
+
 // Create aREST instance
 aREST rest = aREST();
 
@@ -156,6 +162,8 @@ void setup(void)
   setup_rest();
 
   wifi_connect();
+
+  pinMode(buttonPin, INPUT);
 }
 
 void handle_rest() 
@@ -178,9 +186,27 @@ void handle_rest()
   rest.handle(client);  
 }
 
+void handle_button() 
+{
+  int buttonState = digitalRead(buttonPin);
+  
+  if (buttonState ==  HIGH) {
+    isButtonDown = true;
+  } else if (isButtonDown) {
+    isButtonDown = false;
+
+    if (millis() - clickTime >= clickDelay) {
+      Serial.println("click!");
+      clickTime = millis();
+    }
+  }
+}
+
 void loop() 
 {
   handle_rest();
+
+  handle_button();
 }
 
 // Custom function accessible by the API

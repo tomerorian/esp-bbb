@@ -254,8 +254,8 @@ void handle_button_click()
     return;
   }
 
-  String cookie = makeRequest(&client, "/login?username=user&password=password", "");
-  makeRequest(&client, "/order?username=user&password=password", cookie);
+  String cookie = makeRequest(&client, "/login?username=" + bbb_username + "&password=" + bbb_password, "");
+  makeRequest(&client, "/order?username=" + bis_username + "&password=" + bis_password, cookie);
 
   client.stop();
 }

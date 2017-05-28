@@ -16,6 +16,7 @@
 const int httpPort = 443;
 const char *host = "beef-bun-button.herokuapp.com";
 const char* fingerprint = "08 3B 71 72 02 43 6E CA ED 42 86 93 BA 7E DF 81 C4 BC 62 30";
+#define COOKIE_COUNT 5
 
 // Button
 const int buttonPin = 14;
@@ -209,16 +210,31 @@ boolean connect_to_site(WiFiClientSecure *client)
   }
 }
 
-String makeRequest(WiFiClientSecure *client, String url, String cookie)
+void makeRequest(WiFiClientSecure *client, String url, String *cookies)
 {
   Serial.print("Requesting URL: ");
   Serial.println(url);
   
   client->print(String("POST ") + url + " HTTP/1.1\r\n" +
                "Host: " + host + "\r\n");
-               
-  if (cookie != "") {
-    client->print(String("Cookie: " + cookie + "\r\n"));
+
+  boolean isCookiePrinted = false;
+  for (int i = 0; i < COOKIE_COUNT; i++) {
+    String cookie = cookies[i];
+    if (cookie != NULL) {
+      if (!isCookiePrinted) {
+        client->print(String("Cookie: "));
+      } else {
+        client->print(String(";"));
+      }
+
+      client->print(cookie);
+      isCookiePrinted = true;
+    }
+  }
+
+  if (isCookiePrinted) {
+    client->print("\r\n");
   }
   
   client->print("Connection: keep-alive\r\n\r\n");
@@ -228,22 +244,21 @@ String makeRequest(WiFiClientSecure *client, String url, String cookie)
     if (millis() - timeout > 5000) {
       Serial.println(">>> Client Timeout !");
       client->stop();
-      return "";
+      return;
     }
   }
 
-  String retCookie = "";
+  int curCookie = 0;
   
   while(client->available()){
     String line = client->readStringUntil('\r');
     if (line.startsWith("\nSet-Cookie")) {
-      retCookie = line.substring(13);
+      cookies[curCookie] = line.substring(13);
+      curCookie += 1;
     }
     
     Serial.print(line);
   }
-
-  return retCookie;
 }
 
 void handle_button_click() 
@@ -254,8 +269,9 @@ void handle_button_click()
     return;
   }
 
-  String cookie = makeRequest(&client, "/login?username=" + bbb_username + "&password=" + bbb_password, "");
-  makeRequest(&client, "/order?username=" + bis_username + "&password=" + bis_password, cookie);
+  String cookies[2];
+  makeRequest(&client, "/login?username=" + bbb_username + "&password=" + bbb_password, cookies);
+  makeRequest(&client, "/order?username=" + bis_username + "&password=" + bis_password, cookies);
 
   client.stop();
 }
